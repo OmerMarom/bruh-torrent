@@ -36,80 +36,71 @@ impl fmt::Display for Value {
 }
 
 pub fn parse(content: &str) -> Option<Value> {
-    let (value, len) = parse_internal(content)?;
+    let (value, content_left) = parse_value(content)?;
    
-    return
-        if len == content.len() {
-            Some(value)
-        } else {
-            None
-        }
+    if content_left.is_empty() {
+        Some(value)
+    } else {
+        None
+    }
 }
 
-fn parse_internal(content: &str) -> Option<(Value, usize)> {  
-    return match content.chars().next()? {
-        'l' => parse_list(content).map(|(ls, l)| (Value::List(ls), l)),
-        'd' => parse_dictionary(content).map(|(dc, l)| (Value::Dictionary(dc), l)),
-        'i' => parse_interger(content).map(|(i, l)| (Value::Integer(i), l)),
-        '0'..='9' => parse_string(content).map(|(st, l)| (Value::String(st), l)),
+fn parse_value(content: &str) -> Option<(Value, &str)> {  
+    match content.chars().next()? {
+        'l' => parse_list(content).map(|(l, cl)| (Value::List(l), cl)),
+        'd' => parse_dictionary(content).map(|(d, cl)| (Value::Dictionary(d), cl)),
+        'i' => parse_interger(content).map(|(i, cl)| (Value::Integer(i), cl)),
+        '0'..='9' => parse_string(content).map(|(s, cl)| (Value::String(s), cl)),
         _ => None
-    };
+    }
 }
 
-fn parse_list(content: &str) -> Option<(Vec<Value>, usize)> {
+fn parse_list(content: &str) -> Option<(Vec<Value>, &str)> {
     let mut list = Vec::new();
-    let mut list_len = 2; // Prefix 'l' + suffix 'e'
     let mut content_left = &content[1..];
 
     loop {
         match content_left.chars().next()? {
             'e' => {
+                content_left = &content_left[1..];
                 break;
             }, 
             _ => {
-                let (value, value_len) = parse_internal(content_left)?;    
-                content_left = &content_left[value_len..];
-                list_len += value_len;
-
+                let (value, content_after_value) = parse_value(content_left)?;    
+                content_left = content_after_value;
                 list.push(value);
             }
         };
     }
 
-    Some((list, list_len))
+    Some((list, content_left))
 }
 
-fn parse_dictionary(content: &str) -> Option<(HashMap<String, Value>, usize)> {
+fn parse_dictionary(content: &str) -> Option<(HashMap<String, Value>, &str)> {
     let mut dict: HashMap<String, Value> = HashMap::new();
-    let mut dict_len = 2; // Prefix 'd' + suffix 'e'
     let mut content_left = &content[1..];
 
     loop {
         match content_left.chars().next()? {
             'e' => {
+                content_left = &content_left[1..];
                 break;
             },
             _ => {
-                let (key, key_len) = parse_string(content_left)?;
-                content_left = &content_left[key_len..];
-
-                let (value, value_len) = parse_internal(content_left)?;
-                content_left = &content_left[value_len..];
-
-                dict_len += key_len + value_len;
-                
+                let (key, content_after_key) = parse_string(content_left)?;
+                let (value, content_after_value) = parse_value(content_after_key)?;
+                content_left = content_after_value;
                 dict.insert(key, value);
             }
         };
     } 
 
-    Some((dict, dict_len))
+    Some((dict, content_left))
 }
 
-fn parse_string(content: &str) -> Option<(String, usize)> {
+fn parse_string(content: &str) -> Option<(String, &str)> {
     let colon_idx = content.find(':')?;
-    let length_str = &content[..colon_idx];
-    let length = length_str.parse::<usize>().ok()?;
+    let length = content[..colon_idx].parse::<usize>().ok()?;
     
     let value_idx = colon_idx + 1;
     let value_end_idx = value_idx + length;
@@ -118,14 +109,13 @@ fn parse_string(content: &str) -> Option<(String, usize)> {
     }
     let value = content[value_idx..value_end_idx].to_string();
 
-    Some((value, value_end_idx))
+    Some((value, &content[value_end_idx..]))
 }
 
-fn parse_interger(content: &str) -> Option<(i64, usize)> {
+fn parse_interger(content: &str) -> Option<(i64, &str)> {
     let e_idx = content.find('e')?;
-    let int_str = &content[1..e_idx];
-    let int = int_str.parse::<i64>().ok()?;
+    let int = content[1..e_idx].parse::<i64>().ok()?;
 
-    Some((int, e_idx + 1))
+    Some((int, &content[e_idx + 1..]))
 }
 
