@@ -1,8 +1,10 @@
 use std::collections::HashMap;
 use std::fmt;
+use enum_as_inner::EnumAsInner;
 
+#[derive(EnumAsInner)]
 pub enum Value {
-    Integer(i64),
+    Integer(u64),
     String(String),
     List(Vec<Value>),
     Dictionary(HashMap<String, Value>),
@@ -36,9 +38,9 @@ impl fmt::Display for Value {
 }
 
 pub fn parse(content: &str) -> Option<Value> {
-    let (value, content_left) = parse_value(content)?;
+    let (value, content_after_value) = parse_value(content)?;
    
-    if content_left.is_empty() {
+    if content_after_value.is_empty() {
         Some(value)
     } else {
         None
@@ -112,9 +114,9 @@ fn parse_string(content: &str) -> Option<(String, &str)> {
     Some((value, &content[value_end_idx..]))
 }
 
-fn parse_interger(content: &str) -> Option<(i64, &str)> {
+fn parse_interger(content: &str) -> Option<(u64, &str)> {
     let e_idx = content.find('e')?;
-    let int = content[1..e_idx].parse::<i64>().ok()?;
+    let int = content[1..e_idx].parse::<u64>().ok()?;
 
     Some((int, &content[e_idx + 1..]))
 }
