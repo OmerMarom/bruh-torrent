@@ -1,4 +1,4 @@
-use std::{fmt, time::Duration};
+use std::{fmt, str, time::Duration};
 use reqwest;
 use thiserror::Error;
 
@@ -64,7 +64,9 @@ pub async fn announce(url: &str, params: &AnnounceParams) -> Result<AnnounceResp
         ("left", params.left.to_string()),
         ("event", params.event.to_string()),
     ]);
-    let bencode_response = request.send().await?.text().await?;
+    let bencode_response = request.send().await?.bytes().await?;
+
+    println!("Tracker response: {}", str::from_utf8(&bencode_response).unwrap());
 
     let response_value = bencode::parse(&bencode_response)
         .ok_or(AnnounceError::InvalidBencode)?;
@@ -74,9 +76,9 @@ pub async fn announce(url: &str, params: &AnnounceParams) -> Result<AnnounceResp
 
     if let Some(failure_reason) =
         response_dict.get("failure reason")
-        .and_then(|failure_reason| failure_reason.as_string()) {
+        .and_then(|failure_reason| failure_reason.as_str()) {
 
-        return Err(AnnounceError::ErrorResponse(failure_reason.clone()))
+        return Err(AnnounceError::ErrorResponse(failure_reason.to_string()))
     }
 
     let interval = Duration::from_secs(
@@ -95,14 +97,14 @@ pub async fn announce(url: &str, params: &AnnounceParams) -> Result<AnnounceResp
                 .ok_or(AnnounceError::MissingField("peer"))?;
 
             let id = peer_dict.get("peer id")
-                .and_then(|id| id.as_string())
+                .and_then(|id| id.as_str())
                 .ok_or(AnnounceError::MissingField("peer id"))?
-                .clone();
+                .to_string();
 
             let ip = peer_dict.get("ip")
-                .and_then(|ip| ip.as_string())
+                .and_then(|ip| ip.as_str())
                 .ok_or(AnnounceError::MissingField("ip"))?
-                .clone();
+                .to_string();
 
             let port = peer_dict.get("port")
                 .and_then(|port| port.as_integer())
