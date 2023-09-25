@@ -4,9 +4,9 @@ mod bencode;
 
 #[tokio::main]
 async fn main() {
-    const TORRENT_FILE: &str = "/home/omer/Downloads/adventuresofsher00doylrich_archive.torrent";
-    const PEER_ID: &str = "OMERMAROM69420694206";
-    const PORT: u16 = 10_000;
+    const TORRENT_FILE: &str = "/home/omer/Downloads/ubuntu-23.10-beta-live-server-amd64.iso.torrent";
+    const PEER_ID: &str = "ABCDEFGHIJKLMNOPQRST";
+    const PORT: u16 = 6881;
 
     let torrent_info = torrent_file::parse(TORRENT_FILE).unwrap();
 
@@ -16,7 +16,7 @@ async fn main() {
         .iter().fold(0, |length, file| file.length + length);
 
     let request = tracker::AnnounceParams {
-        info_hash: String::from("123"),
+        info_hash: torrent_info.info.hash,
         peer_id: String::from(PEER_ID),
         port: PORT,
         uploaded: 0,

@@ -1,7 +1,6 @@
 use std::{fs, io};
 use thiserror::Error;
 use sha1::{Sha1, Digest};
-use hex;
 
 use crate::bencode;
 
@@ -11,7 +10,7 @@ pub struct File {
 }
 
 pub struct Info {
-    pub hash: String,
+    pub hash: [u8; 20],
     pub name: Option<String>,
     pub piece_length: usize,
     pub pieces: Vec<Vec<u8>>,
@@ -27,8 +26,8 @@ pub struct TorrentInfo {
 pub enum ParseError {
     #[error("{0}")]
     FileError(#[from] io::Error),
-    #[error("Invalid bencode")]
-    InvalidBencode,
+    #[error("File contains invalid bencode: {0}")]
+    InvalidBencode(#[from] bencode::ParseError),
     #[error("Missing field {0}")]
     MissingField(&'static str),
     #[error("Invalid pieces field")]
@@ -38,8 +37,7 @@ pub enum ParseError {
 pub fn parse(filepath: &str) -> Result<TorrentInfo, ParseError> {
     let bencode_content = fs::read(filepath)?;
     
-    let root = bencode::parse(&bencode_content)
-        .ok_or(ParseError::InvalidBencode)?;
+    let root = bencode::parse(&bencode_content)?;
 
     let root_dict = root.as_dictionary()
         .ok_or(ParseError::MissingField("root"))?;
@@ -55,7 +53,8 @@ pub fn parse(filepath: &str) -> Result<TorrentInfo, ParseError> {
     // TODO Is recreating the hasher for each announce ok?
     let mut hasher = Sha1::new();
     hasher.update(info_value.unparsed);
-    let hash = hex::encode(hasher.finalize().as_slice());
+    // TODO Is there a reason this may fail?
+    let hash = hasher.finalize().as_slice().try_into().unwrap();
 
     let info_dict = info_value.as_dictionary()
         .ok_or(ParseError::MissingField("info"))?;
